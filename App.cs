@@ -8,6 +8,8 @@ namespace GenericHostConsole
 {
     public class App : IHostedService
     {
+        private int? _exitCode;
+
         private readonly ILogger<App> logger;
         private readonly IHostApplicationLifetime appLifetime;
 
@@ -17,18 +19,32 @@ namespace GenericHostConsole
             this.appLifetime = appLifetime;
         }
 
-        public async Task StartAsync(CancellationToken cancellationToken)
+        public Task StartAsync(CancellationToken cancellationToken)
         {
-            logger.LogWarning("Worker running at: {time}", DateTimeOffset.Now);
+            try
+            {
+                logger.LogWarning("Worker running at: {time}", DateTimeOffset.Now);
+                _exitCode = 1;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Unhandled exception!");
+                _exitCode = 1;
+            }
+            finally
+            {
+                appLifetime.StopApplication();
+            }
 
-            await Task.Yield();
-
-            appLifetime.StopApplication();
+            return Task.CompletedTask;
         }
 
         public Task StopAsync(CancellationToken cancellationToken)
         {
             logger.LogWarning("Worker stopped at: {time}", DateTimeOffset.Now);
+
+            Environment.ExitCode = _exitCode.GetValueOrDefault(-1);
+
             return Task.CompletedTask;
         }
     }
